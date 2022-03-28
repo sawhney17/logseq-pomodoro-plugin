@@ -1,7 +1,7 @@
 {
-  "name": "logseq-starter-plugin",
-  "version": "1.0",
-  "description": "Starter Plugin",
+  "name": "logseq-pomodoro-plugin",
+  "version": "1.0.0",
+  "description": "Pomodoro Timer",
   "main": "dist/index.html",
   "targets": {
     "main": false
@@ -14,11 +14,11 @@
   "author": "Aryan Sawhney",
   "license": "MIT",
   "dependencies": {
-    "@logseq/libs": "0.0.1-alpha.34"
+    "@logseq/libs": "0.0.1-alpha.35"
   },
   "logseq": {
-    "id": "logseq-starter-plugin",
-    "title": "logseq-starter-plugin",
+    "id": "logseq-pomodoro-plugin",
+    "title": "logseq-pomodoro-plugin",
     "icon": "./icon.png"
   },
   "devDependencies": {
