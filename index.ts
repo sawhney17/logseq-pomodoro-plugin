@@ -20,7 +20,15 @@ let settings: SettingSchemaDesc[] = [
     title: "Break Length",
     description: "Set the length of your break in minutes",
     default: "5"
-  }]
+  },
+  {
+    key: "AutomaticallyStartBreakAfterPomodoro",
+    type: "boolean",
+    title: "Automatically switch timer upon completion?",
+    description: "Automatically Start Break after Pomodoro(and pomodoro after break)?",
+    default: true
+  },
+]
 logseq.useSettingsSchema(settings)
 async function startTimer() {
   if (!onBreak) {
@@ -89,8 +97,19 @@ function updateTimer() {
     }
     new Notification(notificationText);
     onBreak = !onBreak
+    console.log(logseq.settings.AutomaticallyStartBreakAfterPomodoro)
+
     startTimer()
     interval = setInterval(updateTimer, 1000);
+    if (!logseq.settings.AutomaticallyStartBreakAfterPomodoro) {
+togglePause()
+    }
+    else{
+      // togglePause()
+      // interval = setInterval(updateTimer, 1000);
+
+    }
+    
   }
 }
 
