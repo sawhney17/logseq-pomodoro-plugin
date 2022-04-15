@@ -29,7 +29,7 @@ let settings: SettingSchemaDesc[] = [
     default: true
   },
 ]
-logseq.useSettingsSchema(settings)
+
 async function startTimer() {
   if (!onBreak) {
     timer = logseq.settings.pomodoroLength * 60
@@ -136,6 +136,7 @@ async function stopTimer() {
 
 
 const main = async () => {
+  logseq.useSettingsSchema(settings)
   Notification.requestPermission()
   console.log('plugin loaded');
   logseq.provideModel({

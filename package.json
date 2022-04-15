@@ -1,6 +1,6 @@
 {
   "name": "logseq-pomodoro-plugin",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Pomodoro Timer",
   "main": "dist/index.html",
   "targets": {

@@ -12,3 +12,4 @@
 2. Click the pause button to pause
 3. Click the rewind button to reset
 4. Customize the length in plugin settings
+5. Customize whether you want the plugin to start next flow or start next break automatically
