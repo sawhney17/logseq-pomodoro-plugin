@@ -1,10 +1,23 @@
-import '@logseq/libs';
-import { SettingSchemaDesc } from '@logseq/libs/dist/LSPlugin';
+import '@logseq/libs'
+import { SettingSchemaDesc } from '@logseq/libs/dist/LSPlugin'
 
-var timer = 10
-var stopped = true
-var interval
-var onBreak = false
+// Date when the timer was started.
+let startTime = Date.now()
+
+// The time remaining when paused.
+let remainingTime = null
+
+// The date when the current timer should expire.
+let endTime = Date.now()
+
+// Whether the timer is currently stopped. (Starts in stopped state)
+let stopped = true
+
+// Whether the timer is currently on break.
+let onBreak = false
+
+// The interval that updates the display.
+let interval = null
 
 let settings: SettingSchemaDesc[] = [
   {
@@ -27,122 +40,142 @@ let settings: SettingSchemaDesc[] = [
     title: "Automatically switch timer upon completion?",
     description: "Automatically Start Break after Pomodoro(and pomodoro after break)?",
     default: true
-  },
+  }
 ]
 
-async function startTimer() {
+async function updateDisplay() {
+  const remaining = Math.floor(remainingTime / 1000)
+
+  const minute = Math.floor(remaining / 60)
+  const second = remaining % 60
+
+  const minuteString = `${minute < 10 ? "0" : ""}${minute}`
+  const secondString = `${second < 10 ? "0" : ""}${second}`
+
   if (!onBreak) {
-    timer = logseq.settings.pomodoroLength * 60
+    logseq.App.registerUIItem("toolbar", {
+      key: "pomodoro_timer",
+      template: `
+        <div><p style="font-size: large; opacity: 50%;" class="button">${minuteString}:${secondString}</p></div>
+      `
+    })
+  } else {
+    logseq.App.registerUIItem("toolbar", {
+      key: "pomodoro_timer",
+      template: `
+        <div><p style="font-size: large; opacity: 50%; color: green;" class="button">${minuteString}:${secondString}</p></div>
+      `
+    })
   }
-  else {
-    timer = timer = logseq.settings.breakLength * 60
+
+  if (stopped) {
+    logseq.App.registerUIItem("toolbar", {
+      key: "pomodoro_pause",
+      template: `
+        <a data-on-click="toggleStopped" class="button"><i class="ti ti-player-play"></i></a>
+      `
+    })
+  } else {
+    logseq.App.registerUIItem("toolbar", {
+      key: "pomodoro_pause",
+      template: `
+        <a data-on-click="toggleStopped" class="button"><i class="ti ti-player-pause"></i></a>
+      `
+    })
   }
-  const minute = Math.floor(timer / 60);
-  //convert timer, in seconds to minutes and seconds
-  const second = timer % 60;
-  //add a zero in front of numbers<10
-  const minuteString = minute < 10 ? "0" + minute : minute;
-  const secondString = second < 10 ? "0" + second : second;
+
   logseq.App.registerUIItem("toolbar", {
-    key: "pomodoro_timer", template: `
-    <div><p style="font-size: large; opacity: 50%;" class="button">${minuteString}:${secondString}</p></div>`
+    key: "pomodoro_reset",
+    template: `
+        <a data-on-click="stopPomodoro" class="button"><i class="ti ti-rotate"></i></a>
+    `
   })
-  if (stopped) {
-    logseq.App.registerUIItem("toolbar", {
-      key: "pomodoro_pause", template: `
-      <a data-on-click="toggleStopped" class = 'button'><i class="ti ti-player-play"></i></a>` });
-  }
-  else {
-    logseq.App.registerUIItem("toolbar", {
-      key: "pomodoro_pause", template: `
-            <a data-on-click="toggleStopped" class = 'button'><i class="ti ti-player-pause"></i></a>` });
-  }
-  logseq.App.registerUIItem("toolbar", {
-    key: "pomodoro_reset", template: `
-        <a data-on-click = "stopPomodoro" class = 'button'><i class="ti ti-rotate"></i></a>` });
-
 }
-function updateTimer() {
-  const minute = Math.floor(timer / 60);
-  //convert timer, in seconds to minutes and seconds
-  const second = timer % 60;
-  //add a zero in front of numbers<10
-  const minuteString = minute < 10 ? "0" + minute : minute;
-  const secondString = second < 10 ? "0" + second : second;
-  //display the timer in the div
-  if (!onBreak) {
-    logseq.App.registerUIItem("toolbar", {
-      key: "pomodoro_timer", template: `
-    <div><p style="font-size: large; opacity: 50%;" class="button">${minuteString}:${secondString}</p></div>`
-    });
-  }
-  else {
-    logseq.App.registerUIItem("toolbar", {
-      key: "pomodoro_timer", template: `
-      <div><p style="font-size: large; opacity: 50%; color: green;" class="button">${minuteString}:${secondString}</p></div>`
-    });
-  }
-  timer -= 1
+
+async function startTimer() {
+  console.log("pomodoro startTimer")
+  stopped = false
+
+  await updateDisplay()
+
+  if (interval) clearInterval(interval)
+  // Make sure it starts by showing :59, if we actually sleep for 1001ms it'll show :58
+  setTimeout(updateTimer, 100)
+  interval = setInterval(updateTimer, 1000)
+}
+
+
+async function updateTimer() {
+  let currentTime = Date.now()
+  remainingTime = endTime - currentTime
+
   if (stopped) {
     clearInterval(interval)
-  }
-  else if (timer < 1) {
+  } else if (currentTime > endTime) {
     clearInterval(interval)
-    let notificationText
-    if (onBreak) {
-      notificationText = "Break is over. Let's get back to work!"
-    }
-    else {
-      notificationText = "Pomodoro is over. Let's take a break!"
-    }
-    new Notification(notificationText);
+    let notificationText = (onBreak) ?
+      "Break is over. Let's get back to work!" :
+      "Pomodoro is over. Let's take a break!"
+
+    new Notification(notificationText)
     onBreak = !onBreak
-    console.log(logseq.settings.AutomaticallyStartBreakAfterPomodoro)
+    startTime = Date.now()
+    endTime = (!onBreak) ?
+      900 + startTime + logseq.settings.pomodoroLength * 60 * 1000 :
+      900 + startTime + logseq.settings.breakLength * 60 * 1000
+    remainingTime = endTime - startTime
 
-    startTimer()
-    interval = setInterval(updateTimer, 1000);
-    if (!logseq.settings.AutomaticallyStartBreakAfterPomodoro) {
-togglePause()
+    stopped = !logseq.settings.AutomaticallyStartBreakAfterPomodoro
+    if (!stopped) {
+      await startTimer()
     }
-    else{
-      // togglePause()
-      // interval = setInterval(updateTimer, 1000);
-
-    }
-    
   }
+
+  await updateDisplay()
 }
 
-function togglePause() {
-  stopped = !stopped
+
+async function togglePause() {
+  console.log("pomodoro togglePause")
   if (stopped) {
-    logseq.App.registerUIItem("toolbar", {
-      key: "pomodoro_pause", template: `
-        <a data-on-click="toggleStopped" class = 'button'><i class="ti ti-player-play"></i></a>` });
+    if (startTime === null) {
+      startTime = Date.now()
+      endTime = startTime + logseq.settings.pomodoroLength * 60 * 1000
+      remainingTime = endTime - startTime
+    } else {
+      startTime = Date.now()
+      endTime = startTime + remainingTime
+    }
+
+    await startTimer()
+  } else {
+    clearInterval(interval)
+    stopped = true
+    remainingTime = endTime - Date.now()
   }
-  else {
-    logseq.App.registerUIItem("toolbar", {
-      key: "pomodoro_pause", template: `
-        <a data-on-click="toggleStopped" class = 'button'><i class="ti ti-player-pause"></i></a>` });
-    interval = setInterval(updateTimer, 1000);
-  }
+
+  await updateDisplay()
 }
+
+
 async function stopTimer() {
+  console.log("pomodoro stopTimer")
   stopped = true
   onBreak = false
   clearInterval(interval)
-  startTimer()
+  startTime = Date.now()
+  endTime = startTime + logseq.settings.pomodoroLength * 60 * 1000
+  remainingTime = endTime - startTime
+  await updateDisplay()
 }
 
 
-const main = async () => {
+async function main() {
   logseq.useSettingsSchema(settings)
-  Notification.requestPermission()
-  console.log('plugin loaded');
+  await Notification.requestPermission()
   logseq.provideModel({
     startPomodoro() {
-      startTimer();
-
+      startTimer()
     },
     toggleStopped() {
       togglePause()
@@ -151,9 +184,12 @@ const main = async () => {
       stopTimer()
     }
   })
-  // logseq.App.registerUIItem("toolbar", {
-  //   key: "pomodoro_timer", template: `
-  //   <a data-on-click="startPomodoro" class="button"><i class="ti ti-clock"></i></a>` });
-  startTimer()
+
+  startTime = null
+  endTime = Date.now() + logseq.settings.pomodoroLength * 60 * 1000
+  remainingTime = 900 + endTime - Date.now()
+  await updateDisplay()
+  console.log('pomodoro plugin loaded')
 }
-logseq.ready(main).catch(console.error);
+
+logseq.ready(main).catch(console.error)
